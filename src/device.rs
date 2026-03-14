@@ -129,6 +129,32 @@ impl Device {
         path.to_string()
     }
 
+    /// Try to open a port and send a lightweight probe command.
+    /// Returns `Ok(device_type_code)` if the device responds like a CPAP.
+    pub fn probe(path: &str) -> Result<String> {
+        let mut dev = Self::open(path)?;
+        let resp = dev.command_timeout("Tff", Duration::from_millis(500))?;
+        if resp.starts_with("Rff") {
+            Ok(resp[3..7.min(resp.len())].to_string())
+        } else {
+            bail!("Not a CPAP device (got: {resp})")
+        }
+    }
+
+    /// Scan all USB serial ports and return the first that responds to a CPAP probe.
+    pub fn detect() -> Option<(String, String)> {
+        let ports = serialport::available_ports().ok()?;
+        for p in &ports {
+            if !matches!(p.port_type, serialport::SerialPortType::UsbPort(_)) {
+                continue;
+            }
+            if let Ok(code) = Self::probe(&p.port_name) {
+                return Some((p.port_name.clone(), code));
+            }
+        }
+        None
+    }
+
     /// Open the serial connection to a Micro CPAP device.
     pub fn open(path: &str) -> Result<Self> {
         let path = &Self::normalize_port(path);

@@ -5,59 +5,15 @@ mod model;
 mod monitor;
 mod session;
 
-use anyhow::Result;
+use anyhow::{bail, Result};
 use clap::{Parser, Subcommand};
 
-/// Try to find the first USB serial port on the system.
-fn find_usb_serial_port() -> Option<String> {
-    if let Ok(ports) = serialport::available_ports() {
-        for p in &ports {
-            if matches!(p.port_type, serialport::SerialPortType::UsbPort(_)) {
-                return Some(p.port_name.clone());
-            }
-        }
-    }
-    None
-}
-
-fn default_port() -> String {
-    // First: try to auto-detect a USB serial device (works on all platforms)
-    if let Some(port) = find_usb_serial_port() {
-        return port;
-    }
-
-    // Fallback: platform-specific default
-    #[cfg(target_os = "macos")]
-    {
-        // Also try glob patterns for macOS serial devices that may not
-        // report as UsbPort type
-        for pattern in &["/dev/tty.usbserial-*", "/dev/tty.usbmodem-*"] {
-            if let Ok(paths) = glob::glob(pattern) {
-                for entry in paths.flatten() {
-                    return entry.to_string_lossy().into_owned();
-                }
-            }
-        }
-        return "/dev/tty.usbserial-0".to_string();
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        return "COM3".to_string();
-    }
-
-    #[cfg(not(any(target_os = "macos", target_os = "windows")))]
-    {
-        return "/dev/ttyUSB0".to_string();
-    }
-}
-
 #[derive(Parser)]
-#[command(name = "micro-cpap-ctl", about = "Micro CPAP command-line control tool")]
+#[command(name = "cpap", about = "Micro CPAP command-line control tool")]
 struct Cli {
     /// Serial port path (auto-detected if omitted)
-    #[arg(short, long, default_value_t = default_port(), global = true)]
-    port: String,
+    #[arg(short, long, global = true)]
+    port: Option<String>,
 
     #[command(subcommand)]
     command: Command,
@@ -106,6 +62,9 @@ enum Command {
         yes: bool,
     },
 
+    /// Scan serial ports to find a connected CPAP device
+    Detect,
+
     /// List available serial ports
     ListPorts,
 
@@ -117,60 +76,100 @@ enum Command {
     },
 }
 
+/// Resolve the serial port: use --port if given, otherwise probe USB serial
+/// devices to find a CPAP that actually responds.
+fn resolve_port(explicit: Option<&str>) -> Result<String> {
+    if let Some(p) = explicit {
+        return Ok(p.to_string());
+    }
+
+    eprintln!("Scanning for CPAP device...");
+    if let Some((port, code)) = device::Device::detect() {
+        eprintln!("Found device (type {code}) on {port}");
+        return Ok(port);
+    }
+
+    bail!(
+        "No CPAP device found. Is it plugged in?\n\
+         Run `cpap list-ports` to see available serial ports,\n\
+         then specify one with `cpap --port <device> <command>`."
+    )
+}
+
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    // list-ports doesn't need a connection
-    if matches!(cli.command, Command::ListPorts) {
-        let ports = serialport::available_ports()?;
-        if ports.is_empty() {
-            println!("No serial ports found.");
-        } else {
-            println!("Available serial ports:");
-            for p in &ports {
-                let info = match &p.port_type {
-                    serialport::SerialPortType::UsbPort(usb) => {
-                        let prod = usb.product.as_deref().unwrap_or("Unknown");
-                        let mfg = usb.manufacturer.as_deref().unwrap_or("Unknown");
-                        format!("  USB — {} ({})", prod, mfg)
-                    }
-                    serialport::SerialPortType::BluetoothPort => "  Bluetooth".to_string(),
-                    serialport::SerialPortType::PciPort => "  PCI".to_string(),
-                    _ => "".to_string(),
-                };
-                println!("  {}{}", p.port_name, info);
+    match cli.command {
+        // These don't need a device connection
+        Command::ListPorts => {
+            let ports = serialport::available_ports()?;
+            if ports.is_empty() {
+                println!("No serial ports found.");
+            } else {
+                println!("Available serial ports:");
+                for p in &ports {
+                    let info = match &p.port_type {
+                        serialport::SerialPortType::UsbPort(usb) => {
+                            let prod = usb.product.as_deref().unwrap_or("Unknown");
+                            let mfg = usb.manufacturer.as_deref().unwrap_or("Unknown");
+                            format!("  USB — {} ({})", prod, mfg)
+                        }
+                        serialport::SerialPortType::BluetoothPort => "  Bluetooth".to_string(),
+                        serialport::SerialPortType::PciPort => "  PCI".to_string(),
+                        _ => "".to_string(),
+                    };
+                    println!("  {}{}", p.port_name, info);
+                }
+            }
+            Ok(())
+        }
+
+        Command::Detect => {
+            eprintln!("Scanning all USB serial ports...");
+            match device::Device::detect() {
+                Some((port, code)) => {
+                    println!("{port}");
+                    eprintln!("Device type: {code}");
+                    Ok(())
+                }
+                None => {
+                    bail!("No CPAP device found on any USB serial port.");
+                }
             }
         }
-        return Ok(());
-    }
 
-    let mut dev = device::Device::open(&cli.port)?;
-    println!("Connected to {}", cli.port);
+        // Everything else needs a device
+        command => {
+            let port = resolve_port(cli.port.as_deref())?;
+            let mut dev = device::Device::open(&port)?;
+            println!("Connected to {port}");
 
-    match cli.command {
-        Command::ListPorts => unreachable!(),
-        Command::Monitor { interval } => monitor::run(&mut dev, interval),
-        Command::Info => info::run(&mut dev),
-        Command::Set {
-            pressure,
-            ramp_pressure,
-            ramp_time,
-            min_pressure,
-            max_pressure,
-            ezex,
-            yes,
-        } => configure::run(
-            &mut dev,
-            configure::SetArgs {
-                pressure,
-                ramp_pressure,
-                ramp_time,
-                min_pressure,
-                max_pressure,
-                ezex,
-                yes,
-            },
-        ),
-        Command::Session { offset } => session::run(&mut dev, offset),
+            match command {
+                Command::Monitor { interval } => monitor::run(&mut dev, interval),
+                Command::Info => info::run(&mut dev),
+                Command::Set {
+                    pressure,
+                    ramp_pressure,
+                    ramp_time,
+                    min_pressure,
+                    max_pressure,
+                    ezex,
+                    yes,
+                } => configure::run(
+                    &mut dev,
+                    configure::SetArgs {
+                        pressure,
+                        ramp_pressure,
+                        ramp_time,
+                        min_pressure,
+                        max_pressure,
+                        ezex,
+                        yes,
+                    },
+                ),
+                Command::Session { offset } => session::run(&mut dev, offset),
+                Command::ListPorts | Command::Detect => unreachable!(),
+            }
+        }
     }
 }

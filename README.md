@@ -12,7 +12,8 @@ A command-line tool for monitoring and configuring Micro CPAP devices over seria
 - **`monitor`** — Live real-time therapy data with pressure, flow, and leak graphs
 - **`set`** — Modify therapy settings (pressure, ramp, APAP min/max, EZEX level)
 - **`session`** — View detailed session statistics (AHI, pressure, leak, event log)
-- **`list-ports`** — List available serial ports to find your device
+- **`detect`** — Scan USB serial ports to find a connected CPAP device
+- **`list-ports`** — List all available serial ports
 
 Supports Standard CPAP, AutoPAP, and CPAP with EZEX device variants.
 
@@ -60,12 +61,17 @@ cpap set --min-pressure 8.0 --max-pressure 16.0
 
 Communicates at **38400 baud** (8N1, no flow control). Connect via USB-to-serial adapter to the device's serial port.
 
-The port is **auto-detected** — the tool scans for USB serial devices on all platforms. If no USB device is found, it falls back to:
-- **macOS:** `/dev/tty.usbserial-*`, `/dev/tty.usbmodem-*`
-- **Linux:** `/dev/ttyUSB0`
-- **Windows:** `COM3`
+The device is **auto-detected** — when no `--port` is specified, the tool probes each USB serial port with a lightweight query to find a device that actually responds. This works across macOS, Linux, and Windows.
 
-Override with `--port <device>`. Run `list-ports` to see available devices.
+```sh
+# Explicitly scan for the device
+cpap detect
+
+# Or just run any command — it will auto-detect
+cpap info
+```
+
+Override with `--port <device>` if you have multiple serial devices or want to skip the scan.
 
 > **Windows note:** COM ports 10+ are handled automatically (the `\\.\` prefix is added internally).
 
