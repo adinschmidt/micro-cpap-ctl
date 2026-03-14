@@ -1,4 +1,4 @@
-# micro-cpap-ctl
+# cpap
 
 > **Disclaimer:** This project is not affiliated with, endorsed by, or associated with Somnetics or any CPAP device manufacturer. It is an independently developed, open-source tool that communicates with Micro CPAP devices over their serial interface through protocol analysis. This software is provided "as is" without warranty of any kind. **This software is not a medical device and should not be relied upon for medical treatment decisions.** Modifying therapy settings without guidance from a qualified sleep medicine provider may be harmful. The author assumes no liability for device damage, data loss, or health consequences resulting from use of this software. Use at your own risk.
 
@@ -32,28 +32,28 @@ cargo build --release
 
 ```sh
 # Find your serial port
-micro-cpap-ctl list-ports
+cpap list-ports
 
 # Read device info
-micro-cpap-ctl info
+cpap info
 
 # Live monitor (default 0.5s polling)
-micro-cpap-ctl monitor
+cpap monitor
 
 # View most recent session
-micro-cpap-ctl session
+cpap session
 
 # View 3rd most recent session
-micro-cpap-ctl session -n 3
+cpap session -n 3
 
 # Change therapy pressure
-micro-cpap-ctl set --pressure 12.0
+cpap set --pressure 12.0
 
 # Change pressure with auto-confirm
-micro-cpap-ctl set --pressure 12.0 --ramp-time 20 --ramp-pressure 6.0 -y
+cpap set --pressure 12.0 --ramp-time 20 --ramp-pressure 6.0 -y
 
 # APAP: set min/max pressure range
-micro-cpap-ctl set --min-pressure 8.0 --max-pressure 16.0
+cpap set --min-pressure 8.0 --max-pressure 16.0
 ```
 
 ## Serial Connection

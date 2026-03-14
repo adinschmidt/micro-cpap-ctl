@@ -1,9 +1,13 @@
 [package]
 name = "micro-cpap-ctl"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 description = "Open-source CLI tool for monitoring and configuring Micro CPAP devices over serial"
 license = "MIT"
+
+[[bin]]
+name = "cpap"
+path = "src/main.rs"
 
 [dependencies]
 clap = { version = "4", features = ["derive"] }
