@@ -8,10 +8,29 @@ mod session;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
+/// Try to find the first USB serial port on the system.
+fn find_usb_serial_port() -> Option<String> {
+    if let Ok(ports) = serialport::available_ports() {
+        for p in &ports {
+            if matches!(p.port_type, serialport::SerialPortType::UsbPort(_)) {
+                return Some(p.port_name.clone());
+            }
+        }
+    }
+    None
+}
+
 fn default_port() -> String {
-    // macOS: try to find a matching serial device automatically
+    // First: try to auto-detect a USB serial device (works on all platforms)
+    if let Some(port) = find_usb_serial_port() {
+        return port;
+    }
+
+    // Fallback: platform-specific default
     #[cfg(target_os = "macos")]
     {
+        // Also try glob patterns for macOS serial devices that may not
+        // report as UsbPort type
         for pattern in &["/dev/tty.usbserial-*", "/dev/tty.usbmodem-*"] {
             if let Ok(paths) = glob::glob(pattern) {
                 for entry in paths.flatten() {
@@ -22,13 +41,11 @@ fn default_port() -> String {
         return "/dev/tty.usbserial-0".to_string();
     }
 
-    // Windows
     #[cfg(target_os = "windows")]
     {
         return "COM3".to_string();
     }
 
-    // Linux (default)
     #[cfg(not(any(target_os = "macos", target_os = "windows")))]
     {
         return "/dev/ttyUSB0".to_string();

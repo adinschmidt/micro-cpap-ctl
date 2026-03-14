@@ -117,8 +117,21 @@ pub struct Device {
 }
 
 impl Device {
+    /// Normalize the port path for the current platform.
+    /// On Windows, COM ports >= 10 require the `\\.\` prefix.
+    fn normalize_port(path: &str) -> String {
+        #[cfg(target_os = "windows")]
+        {
+            if path.starts_with("COM") && !path.starts_with(r"\\.\") {
+                return format!(r"\\.\{}", path);
+            }
+        }
+        path.to_string()
+    }
+
     /// Open the serial connection to a Micro CPAP device.
     pub fn open(path: &str) -> Result<Self> {
+        let path = &Self::normalize_port(path);
         let mut port = serialport::new(path, BAUD_RATE)
             .data_bits(serialport::DataBits::Eight)
             .parity(serialport::Parity::None)

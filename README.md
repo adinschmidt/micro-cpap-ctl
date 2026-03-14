@@ -60,12 +60,14 @@ micro-cpap-ctl set --min-pressure 8.0 --max-pressure 16.0
 
 Communicates at **38400 baud** (8N1, no flow control). Connect via USB-to-serial adapter to the device's serial port.
 
-Default port is auto-detected per platform:
-- **macOS:** scans `/dev/tty.usbserial-*` and `/dev/tty.usbmodem-*`
+The port is **auto-detected** — the tool scans for USB serial devices on all platforms. If no USB device is found, it falls back to:
+- **macOS:** `/dev/tty.usbserial-*`, `/dev/tty.usbmodem-*`
 - **Linux:** `/dev/ttyUSB0`
 - **Windows:** `COM3`
 
-Override with `--port /path/to/device`. Run `list-ports` to see available devices.
+Override with `--port <device>`. Run `list-ports` to see available devices.
+
+> **Windows note:** COM ports 10+ are handled automatically (the `\\.\` prefix is added internally).
 
 ## License
 

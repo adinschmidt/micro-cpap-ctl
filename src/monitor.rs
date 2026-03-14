@@ -11,6 +11,28 @@ use crate::model::LiveEvent;
 const MAX_EVENTS: usize = 8;
 const EVENT_POLL_INTERVAL: u32 = 5; // check for new events every N cycles
 
+/// Enable ANSI escape code support on Windows 10+.
+#[cfg(target_os = "windows")]
+fn enable_virtual_terminal() {
+    use std::os::windows::io::AsRawHandle;
+    const ENABLE_VIRTUAL_TERMINAL_PROCESSING: u32 = 0x0004;
+    unsafe {
+        let handle = std::io::stdout().as_raw_handle();
+        let mut mode: u32 = 0;
+        // GetConsoleMode / SetConsoleMode from kernel32
+        extern "system" {
+            fn GetConsoleMode(h: *mut std::ffi::c_void, mode: *mut u32) -> i32;
+            fn SetConsoleMode(h: *mut std::ffi::c_void, mode: u32) -> i32;
+        }
+        if GetConsoleMode(handle as *mut _, &mut mode) != 0 {
+            let _ = SetConsoleMode(handle as *mut _, mode | ENABLE_VIRTUAL_TERMINAL_PROCESSING);
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn enable_virtual_terminal() {}
+
 fn bar(value: f64, max_val: f64, width: usize) -> String {
     let clamped = value.clamp(0.0, max_val);
     let filled = (clamped / max_val * width as f64) as usize;
@@ -18,6 +40,7 @@ fn bar(value: f64, max_val: f64, width: usize) -> String {
 }
 
 pub fn run(dev: &mut Device, interval: f64) -> Result<()> {
+    enable_virtual_terminal();
     let running = Arc::new(AtomicBool::new(true));
     let r = running.clone();
     ctrlc::set_handler(move || r.store(false, Ordering::SeqCst))?;
