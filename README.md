@@ -12,6 +12,7 @@ A command-line tool for monitoring and configuring Micro CPAP devices over seria
 - **`monitor`** — Live real-time therapy data with pressure, flow, and leak graphs
 - **`set`** — Modify therapy settings (pressure, ramp, APAP min/max, EZEX level)
 - **`session`** — View detailed session statistics (AHI, pressure, leak, event log)
+- **`list-ports`** — List available serial ports to find your device
 
 Supports Standard CPAP, AutoPAP, and CPAP with EZEX device variants.
 
@@ -30,8 +31,11 @@ cargo build --release
 ## Usage
 
 ```sh
+# Find your serial port
+micro-cpap-ctl list-ports
+
 # Read device info
-micro-cpap-ctl --port /dev/ttyUSB0 info
+micro-cpap-ctl info
 
 # Live monitor (default 0.5s polling)
 micro-cpap-ctl monitor
@@ -56,7 +60,12 @@ micro-cpap-ctl set --min-pressure 8.0 --max-pressure 16.0
 
 Communicates at **38400 baud** (8N1, no flow control). Connect via USB-to-serial adapter to the device's serial port.
 
-Default port: `/dev/ttyUSB0` (override with `--port`).
+Default port is auto-detected per platform:
+- **macOS:** scans `/dev/tty.usbserial-*` and `/dev/tty.usbmodem-*`
+- **Linux:** `/dev/ttyUSB0`
+- **Windows:** `COM3`
+
+Override with `--port /path/to/device`. Run `list-ports` to see available devices.
 
 ## License
 
