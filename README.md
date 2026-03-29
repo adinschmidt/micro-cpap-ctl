@@ -1,4 +1,4 @@
-# cpap
+# micro-cpap-ctl
 
 > **Disclaimer:** This project is not affiliated with, endorsed by, or associated with Somnetics or any CPAP device manufacturer. It is an independently developed, open-source tool that communicates with Micro CPAP devices over their serial interface through protocol analysis. This software is provided "as is" without warranty of any kind. **This software is not a medical device and should not be relied upon for medical treatment decisions.** Modifying therapy settings without guidance from a qualified sleep medicine provider may be harmful. The author assumes no liability for device damage, data loss, or health consequences resulting from use of this software. Use at your own risk.
 
