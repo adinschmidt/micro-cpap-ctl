@@ -10,8 +10,8 @@ name = "cpap"
 path = "src/main.rs"
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
-serialport = "4"
-chrono = "0.4"
-anyhow = "1"
-ctrlc = "3"
+clap = { version = "=4.6.1", features = ["derive"] }
+serialport = "=4.9.0"
+chrono = "=0.4.44"
+anyhow = "=1.0.102"
+ctrlc = "=3.5.2"
